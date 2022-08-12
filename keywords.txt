@@ -1,0 +1,52 @@
+#######################################
+# Syntax Coloring Map For FixedString
+####################################### 
+# Datatypes (KEYWORD1)
+#######################################
+FixedString	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+
+#######################################
+# Syntax Coloring Map For Arduino_JSON
+####################################### 
+# Class
+#######################################
+FixedString	KEYWORD1
+
+#######################################
+# Methods and Functions 
+#######################################	
+clear	KEYWORD2
+assign	KEYWORD2
+concat	KEYWORD2
+c_str	KEYWORD2
+
+compareTo	KEYWORD2
+charAt		KEYWORD2
+setCharAt	KEYWORD2
+startsWith	KEYWORD2
+endsWith	KEYWORD2
+indexOf		KEYWORD2
+lastIndexOf	KEYWORD2
+substring	KEYWORD2
+replace		KEYWORD2
+remove		KEYWORD2
+insert		KEYWORD2
+toLowerCase	KEYWORD2
+toUpperCase	KEYWORD2
+trim		KEYWORD2
+
+set			KEYWORD2
+toInt		KEYWORD2
+toFloat		KEYWORD2
+toDouble	KEYWORD2
+format		KEYWORD2
+toDouble	KEYWORD2
+
+#######################################
+# Constants
+#######################################
