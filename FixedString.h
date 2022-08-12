@@ -1,4 +1,4 @@
-// Static String
+// Fixed String
 // (c) Copyright 2022 Fatlab Software Pty Ltd.
 //
 //This library is free software; you can redistribute it and/or

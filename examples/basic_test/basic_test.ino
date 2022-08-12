@@ -1,10 +1,10 @@
 // FixedString
-// A wrapper class around a stack based fixed string char my_str[c_storage_size];
-// We also store the length in a byte (Thus the 256 byte limit!) to speed up operations.
-// the size must be <=256 and divisible by 4
-// Also added is support for a flash string printf style format() call.
+// This sketch demonstrates how to use various features of FixedStrings
 //
-#include "FixedString.h"
+// This example code is in the public domain.
+//
+
+#include <FixedString.h>
 
 static int fail_cnt=0;
 void test(bool b_val,int test_no,const char* val="")
@@ -33,7 +33,7 @@ void test_equals(const char* s1,const char* s2,int test_no)
 }
  DEFINE_PSTR(cAlphabet,"abcdefghijklmnopqrstuvwxyz");
 
-void test_static_str()
+void TestFixedString()
 {
 	FixedString<32> s2(GET_PSTR(cAlphabet));
 	test(s2.length()==26,1);
@@ -169,7 +169,7 @@ void setup()
     Serial.begin(9600);
     delay(50);
     Serial.println("Basic testing of FixedString<>....");
- 		test_static_str();
+ 		TestFixedString();
     Serial.println("Finished testing");
     if(fail_cnt>0)
       return;
