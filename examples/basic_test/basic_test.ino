@@ -14,7 +14,7 @@ void test(bool b_val,int test_no,const char* val="")
    {
     FixedString<8> s_val(val);
     if(!s_val.empty())
-      s.format("Test No: %i - Failed <%s>",test_no,s_val.data());
+      s.format("Test No: %i - Failed <%s>",test_no,s_val.c_str());
     else
       s.format("Test No: %i - Failed....",test_no);
     Serial.println(s);
@@ -31,11 +31,11 @@ void test_equals(const char* s1,const char* s2,int test_no)
    fail_cnt++;
    }
 }
- DEFINE_PSTR(cAlphabet,"abcdefghijklmnopqrstuvwxyz");
+DEFINE_PSTR(cFlashAlphabet,"abcdefghijklmnopqrstuvwxyz");
 
 void TestFixedString()
 {
-	FixedString<32> s2(GET_PSTR(cAlphabet));
+	FixedString<32> s2(GET_PSTR(cFlashAlphabet));
 	test(s2.length()==26,1);
 	test(s2.available()==4,2);
 	test(s2.charAt(3)=='d',3);
@@ -48,13 +48,13 @@ void TestFixedString()
 	s.concat("fish");
 	s+="_23";
 	test(s=="fred fish_23",10);
-	test(strcmp(s.data_offset(5),"fish_23")==0,11);
+	test(s.substring(5)=="fish_23",11);
 	s.remove(2,2);
 	test(s=="fr fish_23",15);
 	s.insert(2,"ed");
 	test(s=="fred fish_23",16);
 	test(s.length()==12,17);
-	s+=GET_PSTR(cAlphabet);
+	s+=GET_PSTR(cFlashAlphabet);
 	test(s.length()==30,18);
 	test(s.full(),19);
 
@@ -67,11 +67,11 @@ void TestFixedString()
 	s1+="rst";
 	s1+="uvw";
 	s1+="xyz";
-	test(s1==GET_PSTR(cAlphabet),20);
+	test(s1==GET_PSTR(cFlashAlphabet),20);
 	test(s1.length()==26,21);
 	s1.replace("def","DEF");
 	test(s1!=s2,22);
-	test(s1.equalsIgnoreCase(GET_PSTR(cAlphabet)),23);
+	test(s1.equalsIgnoreCase(GET_PSTR(cFlashAlphabet)),23);
 
 	test(FixedString<8>(3)=="3",30);
 	test(FixedString<8>(3l)=="3",31);
@@ -88,7 +88,7 @@ void TestFixedString()
 
 	FixedString<16> s16("buddy boy 21");
 	s1=s16;
-	s1.shrink(9);
+	s1.remove(9);
 	test(s1=="buddy boy",40);
 	s1.toUpperCase();
 	test(s1=="BUDDY BOY",41);

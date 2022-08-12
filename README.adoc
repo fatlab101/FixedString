@@ -2,14 +2,7 @@
 :repository-name: FixedString
 :arduino-libs: arduino-libraries
 
-= {repository-name} Library for Arduino =
-
-image:https://github.com/{repository-owner}/{arduino-libs}/actions/workflows/check-arduino.yml/badge.svg["Check Arduino status", link="https://github.com/{repository-owner}/{repository-name}/actions/workflows/check-arduino.yml"]
-image:https://github.com/{repository-owner}/{arduino-libs}/actions/workflows/compile-examples.yml/badge.svg["Compile Examples status", link="https://github.com/{repository-owner}/{repository-name}/actions/workflows/compile-examples.yml"]
-image:https://github.com/{repository-owner}/{arduino-libs}/actions/workflows/spell-check.yml/badge.svg["Spell Check status", link="https://github.com/{repository-owner}/{repository-name}/actions/workflows/spell-check.yml"]
-
 An Arduino stack based fixed string class:
-
 
 
 ```cpp
@@ -22,6 +15,7 @@ char buffer[24];
 strcpy(buffer,"This is my");
 strcat(buffer," string");
 Serial.println(buffer);
+
 
 With:
 

@@ -21,6 +21,7 @@
 #ifdef ARDUINO
 #include "Arduino.h"
 #include "WString.h"
+
 #else //Testing 
 #if __cplusplus < 201703L
 #error Require C++17 for non-Arduino usage!
@@ -29,6 +30,34 @@
 #include <string.h>
 #include <ctype.h>
 #include <charconv> //Assumes c++17+ for Non Arduino usage/testing
+#endif
+
+#ifdef ARDUINO
+///////////////////////////////////////////////////////////////////////////////////////////
+// Flash memory Helpers
+//NB. variables must be globally defined, OR defined with the static keyword, to work with PROGMEM.
+//  The following code will NOT work when inside a function:
+//  const char long_str[] PROGMEM = "Hi, I would like to tell you a bit about myself.\n";
+//  The following code WILL work, even if locally defined within a function:
+//  const static char long_str[] PROGMEM = "Hi, I would like to tell you a bit about myself.\n"
+//
+//To define Flash String constant use DEFINE_PSTR()
+//
+// DEFINE_PSTR(my_const_str_val,"This is a literal string held completely in flash memory."); 
+//
+// To then access this string use GET_PSTR()
+//
+// String s(GET_PSTR(my_const_str_val));
+//
+//NB. Use F() for literal strings
+//
+// String s(F("My flash string"));
+//
+#define DEFINE_PSTR(lbl,s)	static const char pstr_##lbl[] PROGMEM = s
+#define GET_PSTR(lbl)		(reinterpret_cast<const __FlashStringHelper*>(pstr_##lbl))
+#else 
+#define DEFINE_PSTR(lbl,s)	static const char pstr_##lbl[] = s 
+#define GET_PSTR(lbl)		pstr_##lbl
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -129,7 +158,7 @@ public:
 	template<typename Num>
 	FixedString& operator=(Num n) { set(n); return *this; }
 #ifdef ARDUINO
-	FixedString(FlashPtr str) :FixedString() { concat(str); }
+	FixedString(FlashPtr str) :FixedString() { assign(str); }
 	FixedString(const String& s) :FixedString(s.c_str(), s.length()) {}
 	FixedString& operator=(FlashPtr str) { assign(str); return *this; }
 	FixedString& operator=(const String& s) { assign(s); return *this; }
@@ -152,7 +181,17 @@ public:
 	bool assign(const FixedString<c_storage_size2>& rhs) { clear(); return concat(rhs); }
 #ifdef ARDUINO
 	bool assign(const String& s) { clear(); return concat(s); }
-	bool assign(FlashPtr str) { clear(); return concat(str); }
+	bool assign(FlashPtr str)
+	{
+		clear();
+		const_pointer prog_ptr = reinterpret_cast<const_pointer>(str);
+		if (prog_ptr == NULL)
+			return false;
+		const auto prog_len = strlen_P(prog_ptr);
+		const auto actual_cnt = get_min(available(), prog_len);
+		memcpy_P(m_str, prog_ptr, actual_cnt);//copy data
+		return set_len(actual_cnt, actual_cnt == prog_len);
+	}
 #endif
 	//concat
 	bool concat(const_pointer data, size_type len) { return handle_insert(length(), data, len); }
@@ -180,7 +219,7 @@ public:
 	FixedString& operator+=(const FixedString& s) { concat(s); return *this; }
 #ifdef ARDUINO
 	bool concat(const String& s) { return handle_insert(length(), s.c_str(), s.length()); }
-	bool concat(FlashPtr str) { return handle_insert(length(), str); }
+	bool concat(FlashPtr str) { return concat(FixedString(str)); }
 	FixedString& operator+=(const String& s) { concat(s); return *this; }
 	FixedString& operator+=(FlashPtr str) { concat(str); return *this; }
 #endif
@@ -251,24 +290,26 @@ public:
 		}
 		return m_str[index];
 	}
+	//Call if external string set 
+	void update_len() { set_len(get_min(safe_len(m_str), capacity())); }
 	void getBytes(unsigned char* buf, size_type bufsize, size_type index = 0) const
+	{
+		toCharArray((char*)buf, bufsize, index);
+	}
+	void toCharArray(char* buf, size_type bufsize, size_type index = 0) const
 	{
 		if (is_empty(buf, bufsize))
 			return;
 		if (index >= length())
 		{
-			buf[0] = 0;
+			buf[0] = '\0';
 			return;
 		}
 		auto n = bufsize - 1;
 		if (n > length() - index)
 			n = length() - index;
-		strncpy((char*)buf, m_str + index, n);
+		memcpy(buf, m_str + index, n);
 		buf[n] = 0;
-	}
-	void toCharArray(char* buf, size_type bufsize, size_type index = 0) const
-	{
-		getBytes((unsigned char*)buf, bufsize, index);
 	}
 	const_pointer c_str()const { return m_str; }
 	operator const_pointer()const { return m_str; }
@@ -494,14 +535,13 @@ public:
 		if (fmt.empty())
 			return;
 		va_list args;
-		va_start(args, pFormat);
+		va_start(args, fmt.m_str);
 		formatV(fmt.m_str, args);
 		va_end(args);
 	}
 #endif
 private:
 	//helpers
-	bool valid_offset(size_type off)const { return off <= length(); }//end() is past last
 	bool valid_pos(size_type index)const { return index < length(); }
 	const_pointer data_offset(size_type off)const { return m_str + off; }
 	bool can_add_all(size_type len)const { return len >= 0 && (length() + len) <= capacity(); }
@@ -511,7 +551,7 @@ private:
 	}
 	bool handle_insert(size_type index, const_pointer data, size_type len, bool allowPartial = true)
 	{
-		if (!valid_offset(index))
+		if (index > length())
 			return false;
 		if (is_empty(data, len))
 			return false;
@@ -527,9 +567,9 @@ private:
 	}
 	bool handle_insert(size_type index, size_type repeat, char_type c)
 	{
-		if (!valid_offset(index))
+		if (index > length())
 			return false;
-		if (repeat == 0 || c == 0)
+		if (repeat == 0 || c == '\0')
 			return false;
 		if (full())
 			return notify_overrun();
@@ -539,23 +579,6 @@ private:
 			m_str[index + i] = c;
 		return set_len(length() + actual_cnt, actual_cnt == repeat);
 	}
-#ifdef ARDUINO
-	bool handle_insert(size_type index, FlashPtr str)
-	{
-		if (!valid_offset(index))
-			return false;
-		if (str == NULL)
-			return false;
-		if (full())
-			return notify_overrun();
-		const_pointer prog_ptr = reinterpret_cast<const_pointer>(str);
-		const auto prog_len = strlen_P(prog_ptr);
-		const auto actual_cnt = get_min(available(), prog_len);
-		memmove_P(m_str + index + actual_cnt, m_str + index, length() - index);//shift rem chars up (including null char)
-		memcpy_P(m_str + index, prog_ptr, actual_cnt);//copy data
-		return set_len(length() + actual_cnt, actual_cnt == prog_len);
-	}
-#endif
 	void handle_replace(size_type index, size_type erase_cnt, const_pointer lpch, size_type len)
 	{
 		if (erase_cnt > 0)
@@ -563,8 +586,6 @@ private:
 		handle_insert(index, lpch, len);
 	}
 
-	//Call if external string set 
-	void update_len() { set_len(get_min(static_cast<uint8_t>(safe_len(m_str), capacity()))); }
 	void set_len(size_type len)
 	{
 		if (!valid_len(len))
