@@ -142,26 +142,49 @@ void TestFixedString()
 	test_equals(s1,"wha: 333cde4.35",81);
 	s16=s1;
 	test_equals(s16,"wha: 333cde4.3",82);
- //Format test
-  s1.format("%s %i %u ","fred",-23,341u,23.34);
-  test_equals(s1,"fred -23 341 ",90);
 
-  FixedString<24> s24 = "test me:"+s1;
-  test_equals(s24,"test me:fred -23 341 ",91);
-  s24 = 3.458 + s1;
-  test_equals(s24,"3.46fred -23 341 ",92);
-  s24 = -3456 + s1;
-  test_equals(s24,"-3456fred -23 341 ",93);
-  s24 = 3456u + s1;
-  test_equals(s24,"3456fred -23 341 ",94);
+	//Format test
+	s1.format("%s %i %u ","fred",-23,341u,23.34);
+	test_equals(s1,"fred -23 341 ",90);
 
-  FixedString<32> sp(F("This is a program string"));
-  test_equals(sp,"This is a program string",100);
-  sp+=F(" ++");
-  test_equals(sp,"This is a program string ++",101);
-  sp=F("P string2 ") + s24;
-  //NB. Will overflow on str<24> so test len == 22!!!
-  test(sp="P string2 3456fred -23",102);
+	FixedString<24> s24 = "test me:"+s1;
+	test_equals(s24,"test me:fred -23 341 ",91);
+	s24 = 3.458 + s1;
+	test_equals(s24,"3.46fred -23 341 ",92);
+	s24 = -3456 + s1;
+	test_equals(s24,"-3456fred -23 341 ",93);
+	s24 = 3456u + s1;
+	test_equals(s24,"3456fred -23 341 ",94);
+
+	FixedString<32> sp(F("This is a program string"));
+	test_equals(sp,"This is a program string",100);
+	sp+=F(" ++");
+	test_equals(sp,"This is a program string ++",101);
+	sp=F("P string2 ") + s24;
+	//NB. Will overflow on str<24> so test len == 22!!!
+	test(sp="P string2 3456fred -23",102);
+
+
+	FixedString<64> s25(25.456,2);
+	test_equals(s25, "25.46", 103);
+
+	s=25;
+	test_equals(s25, "25", 104);
+	test(s25.toInt()== 25, 105);
+	s25 += " stuff at u end [tu]*e#$d";
+
+	test(s25.indexOf('u') == 5, 106);
+	test(s25.indexOf('u', 6) == 12, 107);
+	test(s25.indexOf('u', 13) == 20, 108);
+
+	test(s25.lastIndexOf('u') == 20, 109);
+	test(s25.lastIndexOf('u', 10) == 5, 110);
+
+	test(s25.indexOf("tu") == 4, 111);
+	test(s25.indexOf("tu", 6) == 19, 112);
+
+	test(s25.lastIndexOf("tu") == 19, 113);
+	test(s25.lastIndexOf("tu", 18) == 4, 114);
 }
 
 void setup() 
@@ -169,7 +192,7 @@ void setup()
     Serial.begin(9600);
     delay(50);
     Serial.println("Basic testing of FixedString<>....");
- 		TestFixedString();
+	TestFixedString();
     Serial.println("Finished testing");
     if(fail_cnt>0)
       return;

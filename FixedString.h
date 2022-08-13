@@ -24,7 +24,7 @@
 
 #else //Testing 
 #if __cplusplus < 201703L
-#error Require C++17 for non-Arduino usage!
+#error Require C++17 for non-Arduino testing!
 #endif
 #include <stdlib.h>
 #include <string.h>
@@ -54,10 +54,10 @@
 // String s(F("My flash string"));
 //
 #define DEFINE_PSTR(lbl,s)	static const char pstr_##lbl[] PROGMEM = s
-#define GET_PSTR(lbl)		(reinterpret_cast<const __FlashStringHelper*>(pstr_##lbl))
+#define GET_PSTR(lbl)	(reinterpret_cast<const __FlashStringHelper*>(pstr_##lbl))
 #else 
 #define DEFINE_PSTR(lbl,s)	static const char pstr_##lbl[] = s 
-#define GET_PSTR(lbl)		pstr_##lbl
+#define GET_PSTR(lbl)	pstr_##lbl
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -70,25 +70,11 @@ enum Radix { base2 = 2, base8 = 8, base10 = 10, base16 = 16 };
 // FixedString
 // A wrapper class around a stack based fixed string char my_str[c_storage_size];
 // The length of the string is cached in a byte (Thus the 256 byte limit!) to speed up operations.
-// the c_storage_size must be >=4,  <= 256 and divisible by 4
-// Also added is support for a flash string printf style format() call.
-// It is best used on the stack as a drop-in replacement for String to avoid
-// dynamic memory allocation for smaller strings
-// NB.
-// * No memory is allocated so the string will overflow if the fixed size is too small!
-// * If a concat call overflows the return will be false
-// eg.
-// void to_serial(int widget_no,int val)
-//  {
-//  FixedString<48> s;
-//	s.format(F("widget no: %i - val = %i"),widget_no,val);
-//  Serial.print(s);
-//  s="45.3456";
-//	double d=s.toDouble();
-//  ...
-//  }
 // c_storage_size:  is the total bytes used for this class
-// we set the default to a value that could contain any generated numbers
+//					it must be >=4, <= 256 and divisible by 4
+//					the default == 64
+// It is best used on the stack as a drop-in replacement for String to avoid dynamic memory allocation
+// for smaller strings
 ///////////////////////////////////////////////////////////////////////////////////////////
 template<unsigned int c_storage_size = 64>
 class FixedString final
@@ -121,11 +107,11 @@ private:
 	}
 	static constexpr bool is_valid(const_pointer data, size_type len)
 	{
-		return data != NULL || len == 0;//allow empty
+		return data != NULL || len == 0u;//allow empty
 	}
 	static constexpr bool is_empty(const_pointer data, size_type len)
 	{
-		return data == NULL || len == 0;
+		return data == NULL || len == 0u;
 	}
 private:
 	// The Length limited to [0 .. c_storage_size-2]
@@ -134,21 +120,22 @@ private:
 	//The actual string data
 	char_type m_str[c_storage_size - 1];
 public:
-	FixedString() :m_len(0), m_str{ 0 } {} //Make sure null added
+	FixedString() :m_len(0u), m_str{ 0 } {} //Make sure null added
 	FixedString(const_pointer str) { assign(str); }
 	FixedString(const_pointer lpch, size_type len) { assign(lpch, len); }
 	FixedString(char_type c, size_type repeat = 1) { assign(repeat, c); }
 	template<size_type c_storage_size2>
 	FixedString(const FixedString<c_storage_size2>& rhs) { assign(rhs); }
 	//Numeric
-	explicit FixedString(char i, Radix r) { set(i, r); }
-	explicit FixedString(unsigned char u, Radix r) { set(u, r); }
-	explicit FixedString(int i, Radix r = base10) { set(i, r); }
-	explicit FixedString(unsigned int u, Radix r = base10) { set(u, r); }
-	explicit FixedString(long l, Radix r = base10) { set(l, r); }
-	explicit FixedString(unsigned long u, Radix r = base10) { set(u, r); }
-	explicit FixedString(float f, size_type decPlaces = 2) { set(f, decPlaces); }
-	explicit FixedString(double d, size_type decPlaces = 2) { set(d, decPlaces); }
+	//Numeric Set
+	explicit FixedString(char i, Radix r) { assign(i, r); }
+	explicit FixedString(unsigned char u, Radix r) { assign(u, r); }
+	explicit FixedString(int i, Radix r = base10) { assign(i, r); }
+	explicit FixedString(unsigned int u, Radix r = base10) { assign(u, r); }
+	explicit FixedString(long l, Radix r = base10) { assign(l, r); }
+	explicit FixedString(unsigned long u, Radix r = base10) { assign(u, r); }
+	explicit FixedString(float f, size_type decPlaces = 2) { assign(f, decPlaces); }
+	explicit FixedString(double d, size_type decPlaces = 2) { assign(d, decPlaces); }
 	//overloaded assignment
 	FixedString& operator=(const_pointer str) { assign(str); return *this; }
 	FixedString& operator=(char_type c) { assign(c); return *this; }
@@ -156,7 +143,7 @@ public:
 	FixedString& operator=(const FixedString<c_storage_size2>& rhs) { assign(rhs); return *this; }
 	//Numeric
 	template<typename Num>
-	FixedString& operator=(Num n) { set(n); return *this; }
+	FixedString& operator=(Num num) { assign(num); return *this; }
 #ifdef ARDUINO
 	FixedString(FlashPtr str) :FixedString() { assign(str); }
 	FixedString(const String& s) :FixedString(s.c_str(), s.length()) {}
@@ -168,11 +155,12 @@ public:
 	size_type length()const { return m_len; }
 	//No of free chars available for concat
 	size_type available()const { return capacity() - length(); }
-	bool full()const { return available() == 0; }
-	bool empty()const { return length() == 0; }
+	bool full()const { return available() == 0u; }
+	bool empty()const { return length() == 0u; }
 
 public:
-	void clear() { set_len(0); }//set to empty string
+	//set to a valid empty string
+	void clear() { set_len(0); }
 	//assign
 	bool assign(const_pointer data, size_type len) { clear(); return concat(data, len); }
 	bool assign(const_pointer str) { return assign(str, safe_len(str)); }
@@ -189,15 +177,23 @@ public:
 			return false;
 		const auto prog_len = strlen_P(prog_ptr);
 		const auto actual_cnt = get_min(available(), prog_len);
-		memcpy_P(m_str, prog_ptr, actual_cnt);//copy data
+		memcpy_P(begin(), prog_ptr, actual_cnt);//copy data
 		return set_len(actual_cnt, actual_cnt == prog_len);
 	}
 #endif
+	bool assign(char i, Radix r) { return set_i(i, r); }
+	bool assign(unsigned char u, Radix r) { return set_u(u, r); }
+	bool assign(int i, Radix r = base10) { return set_i(i, r); }
+	bool assign(unsigned int u, Radix r = base10) { return set_u(u, r); }
+	bool assign(long i, Radix r = base10) { return set_l(i, r); }
+	bool assign(unsigned long u, Radix r = base10) { return set_ul(u, r); }
+	bool assign(float f, size_type decPlaces = 2) { return set_f(f, decPlaces); }
+	bool assign(double d, size_type decPlaces = 2) { return set_f(d, decPlaces); }
 	//concat
 	bool concat(const_pointer data, size_type len) { return handle_insert(length(), data, len); }
 	bool concat(const_pointer str) { return handle_insert(length(), str); }
 	bool concat(char_type c) { return handle_insert(length(), 1, c); }
-	bool concat(int repeat, char_type c) { return handle_insert(length(), repeat, c); }
+	bool concat(size_type repeat, char_type c) { return handle_insert(length(), repeat, c); }
 	template<size_type c_storage_size2>
 	bool concat(const FixedString<c_storage_size2>& rhs) { return concat(rhs.begin(), rhs.length()); }
 	//Numeric float
@@ -215,7 +211,7 @@ public:
 	}
 	template<typename Param>
 	FixedString& operator+=(Param p) { concat(p); return *this; }
-	template<int c_storage_size2>
+	template<size_type c_storage_size2>
 	FixedString& operator+=(const FixedString& s) { concat(s); return *this; }
 #ifdef ARDUINO
 	bool concat(const String& s) { return handle_insert(length(), s.c_str(), s.length()); }
@@ -223,19 +219,35 @@ public:
 	FixedString& operator+=(const String& s) { concat(s); return *this; }
 	FixedString& operator+=(FlashPtr str) { concat(str); return *this; }
 #endif
+	//Support for C style sprintf format
+	void format(const_pointer fmt, ...)
+	{
+		clear();
+		if (safe_len(fmt) == 0)
+			return;
+		va_list args;
+		va_start(args, fmt);
+		formatV(fmt, args);
+		va_end(args);
+	}
 
 	//string comparison
-	int compareTo(const FixedString& rhs)const { return (&rhs == this) ? 0 : compareTo(rhs.m_str, rhs.length()); }
+	int compareTo(const FixedString& rhs)const
+	{
+		return (&rhs == this)
+			? 0
+			: compareTo(rhs.c_str(), rhs.length());
+	}
 	template<int c_storage_size2>
-	int compareTo(const FixedString<c_storage_size2>& rhs)const { return compareTo(rhs.m_str, rhs.length()); }
+	int compareTo(const FixedString<c_storage_size2>& rhs)const { return compareTo(rhs.c_str(), rhs.length()); }
 	int compareTo(const_pointer rhs)const { return compareTo(rhs, safe_len(rhs)); }
 	int compareTo(const_pointer rhs, size_type len)const
 	{
 		if (is_empty(rhs, len))
-			return empty() ? 0 : m_str[0];
+			return empty() ? 0 : charAt(0);
 		if (empty())
 			return -rhs[0];
-		return strncmp(m_str, rhs, get_max(length(), len));
+		return strncmp(c_str(), rhs, get_max(length(), len));
 	}
 	bool operator<(const FixedString& rhs)const { return compareTo(rhs) < 0; }
 	bool operator>(const FixedString& rhs)const { return compareTo(rhs) > 0; }
@@ -268,30 +280,16 @@ public:
 
 	//Data access
 	char_type charAt(size_type index)const { return valid_pos(index) ? m_str[index] : 0; }
+	char_type operator[](size_type index)const { return charAt(index); }
 	void setCharAt(size_type index, char_type c)
 	{
 		if (!valid_pos(index))
 			return;
 		m_str[index] = c;
 		if (c == '\0')
-			set_len(index);
+			set_len(index);//shrink
 	}
-	char_type operator[](size_type index)const { return charAt(index); }
 
-	//Have kept this direct char mutator to be compatible with Arduino String
-	//BUT use with caution as setting a char to '\0' will NOT update the stored length
-	char_type& operator[](size_type index)
-	{
-		static char dummy_writable_char;
-		if (!valid_pos(index))
-		{
-			dummy_writable_char = 0;
-			return dummy_writable_char;
-		}
-		return m_str[index];
-	}
-	//Call if external string set 
-	void update_len() { set_len(get_min(safe_len(m_str), capacity())); }
 	void getBytes(unsigned char* buf, size_type bufsize, size_type index = 0) const
 	{
 		toCharArray((char*)buf, bufsize, index);
@@ -308,15 +306,17 @@ public:
 		auto n = bufsize - 1;
 		if (n > length() - index)
 			n = length() - index;
-		memcpy(buf, m_str + index, n);
+		memcpy(buf, c_str() + index, n);
 		buf[n] = 0;
 	}
-	const_pointer c_str()const { return m_str; }
 	operator const_pointer()const { return m_str; }
-	pointer begin() { return m_str; }
-	pointer	end() { return begin() + length(); }
+	const_pointer c_str()const { return m_str; }
 	const_pointer begin()const { return m_str; }
 	const_pointer end()const { return begin() + length(); }
+	pointer begin() { return m_str; }
+	pointer	end() { return begin() + length(); }
+	//Call if string modified externally via begin()/end()
+	void update_len() { set_len(get_min(safe_len(c_str()), capacity())); }
 
 	//search
 	bool startsWith(const_pointer s, size_type offset = 0)const
@@ -333,52 +333,64 @@ public:
 			return false;
 		return strncmp(data_offset(length() - rhs_len), s, rhs_len) == 0;
 	}
-	size_type indexOf(char_type c, size_type start_pos = 0)const
+	int indexOf(char_type c, size_type start_pos = 0)const
 	{
 		if (!valid_pos(start_pos))
-			return npos;
+			return -1;
 		const_pointer p = strchr(data_offset(start_pos), c);
-		if (p == NULL)return npos;
-		return static_cast<int>(p - m_str);
+		if (p == NULL)
+			return -1;
+		return static_cast<int>(p - begin());
 	}
-	size_type indexOf(const_pointer s, size_type start_pos = 0)const
+	int indexOf(const_pointer s, size_type start_pos = 0)const
 	{
 		if (!valid_pos(start_pos))
-			return npos;
+			return -1;
 		const auto rhs_len = safe_len(s);
 		if (rhs_len == 0 || (start_pos + rhs_len) > length())
-			return npos;
+			return -1;
 		const_pointer p = strstr(data_offset(start_pos), s);
-		if (p == NULL)return npos;
-		return static_cast<int>(p - m_str);
+		if (p == NULL)
+			return -1;
+		return static_cast<int>(p - begin());
 	}
-	size_type lastIndexOf(char c, size_type from_pos = npos)const
+	int lastIndexOf(char_type c)const
 	{
-		if (from_pos == npos)
-			from_pos = length() - 1;//end
-		if (!valid_pos(from_pos))
-			return npos;
-		const_pointer p = memchr(m_str, c, from_pos);
-		if (p == NULL)return npos;
-		return static_cast<int>(p - m_str);
+		if (empty() || c == 0)
+			return -1;
+		const_pointer p = strrchr(c_str(), c);
+		if (p == NULL)
+			return -1;
+		return static_cast<int>(p - begin());
 	}
-	size_type lastIndexOf(const_pointer s, size_type from_pos = npos)const
+	int lastIndexOf(char_type c, size_type from_pos)const
 	{
-		if (from_pos == npos)
+		if (from_pos >= length())
+			return lastIndexOf(c);
+		if (empty() || c == 0)
+			return -1;
+		return substring(0, from_pos + 1).lastIndexOf(c);
+	}
+	int lastIndexOf(const_pointer s, size_type from_pos = npos)const
+	{
+		if (empty())
+			return -1;
+		const auto rhs_len = safe_len(s);
+		if (rhs_len == 0 || rhs_len > length())
+			return -1;
+		if (from_pos >= length())
 			from_pos = length() - 1;//end
-		if (!valid_pos(from_pos))
-			return npos;
-		const int rhs_len = safe_len(s);
-		const int start_pos = from_pos + 1 - rhs_len;//index to start testing
-		if (rhs_len == 0 || start_pos < 0)
-			return npos;
-		for (int index = start_pos; index >= 0; index--)
+		int found = -1;
+		for (const_pointer p = begin(); p <= data_offset(from_pos); p++)
 		{
-			const_pointer p = strstr(data_offset(index), s);
-			if (p != NULL)
-				return static_cast<int>(p - begin());
+			p = strstr(p, s);
+			if (p == NULL)
+				break;
+			auto index = static_cast<int>(p - begin());
+			if (static_cast<size_type>(index) <= from_pos)
+				found = index;
 		}
-		return npos;
+		return found;
 	}
 	FixedString substring(size_type left, size_type right = npos)const
 	{
@@ -441,7 +453,7 @@ public:
 			return;
 		const auto max_remove_cnt = length() - index;
 		auto actual_cnt = get_min(cnt, max_remove_cnt);//shrink to max available cnt
-		memmove(m_str + index, m_str + index + actual_cnt, max_remove_cnt - actual_cnt + 1);//shift rem chars down (including null char)
+		memmove(begin() + index, begin() + index + actual_cnt, max_remove_cnt - actual_cnt + 1);//shift rem chars down (including null char)
 		set_len(length() - actual_cnt);
 	}
 	void insert(size_type index, const_pointer str) { handle_insert(index, str); }
@@ -463,23 +475,15 @@ public:
 			return;
 		const_pointer start = begin();
 		const_pointer last = end() - 1;
-		while (isspace(*start))start++;
+		while (isspace(*start))
+			start++;
 		while (isspace(*last) && last >= start)last--;
 		if (start > begin())
 			remove(0, static_cast<size_type>(start - begin()));
 		set_len(static_cast<size_type>(last - start + 1));
 	}
 public:
-	//Numeric Set
-	bool set(int8_t i, Radix r) { return set_i(i, r); }
-	bool set(uint8_t u, Radix r) { return set_u(u, r); }
-	bool set(int i, Radix r = base10) { return set_i(i, r); }
-	bool set(unsigned int u, Radix r = base10) { return set_u(u, r); }
-	bool set(long i, Radix r = base10) { return set_l(i, r); }
-	bool set(unsigned long u, Radix r = base10) { return set_ul(u, r); }
-	bool set(float f, size_type decPlaces = 2) { return set_f(f, decPlaces + 2, decPlaces); }
-	bool set(double d, size_type decPlaces = 2) { return set_f(d, decPlaces + 2, decPlaces); }
-	//Numeric Parse
+	//Numeric parsing
 	long	toInt()const { return to_int<long>(); }
 	float	toFloat()const { return to_float<float>(); }
 	double	toDouble()const { return to_float<double>(); }
@@ -496,7 +500,7 @@ public:
 		d = 0.0f;
 		if (empty())
 			return false;
-		d = static_cast<T>(::atof(m_str));
+		d = static_cast<T>(::atof(c_str()));
 		return !isnan(d);
 	}
 	template<typename T = int>
@@ -512,39 +516,14 @@ public:
 		i = 0;
 		if (empty())
 			return false;
-		i = static_cast<T>(::atol(m_str));
+		i = static_cast<T>(::atol(c_str()));
 		return true;
 	}
 
-public:
-	void format(const_pointer pFormat, ...)
-	{
-		clear();
-		if (safe_len(pFormat) == 0)
-			return;
-		va_list args;
-		va_start(args, pFormat);
-		formatV(pFormat, args);
-		va_end(args);
-	}
-#ifdef ARDUINO
-	void format(FlashPtr pFormat, ...)
-	{
-		clear();
-		FixedString fmt(pFormat);//store in temp
-		if (fmt.empty())
-			return;
-		va_list args;
-		va_start(args, fmt.m_str);
-		formatV(fmt.m_str, args);
-		va_end(args);
-	}
-#endif
 private:
 	//helpers
 	bool valid_pos(size_type index)const { return index < length(); }
-	const_pointer data_offset(size_type off)const { return m_str + off; }
-	bool can_add_all(size_type len)const { return len >= 0 && (length() + len) <= capacity(); }
+	const_pointer data_offset(size_type off)const { return begin() + off; }
 	bool handle_insert(size_type index, const_pointer str, bool allowPartial = true)
 	{
 		return handle_insert(index, str, safe_len(str), allowPartial);
@@ -561,8 +540,8 @@ private:
 			return notify_overrun(data, len);
 
 		const auto actual_cnt = get_min(available(), len);
-		memmove(m_str + index + actual_cnt, m_str + index, length() - index);//shift rem chars up (including null char)
-		memcpy(m_str + index, data, actual_cnt);//copy data
+		memmove(begin() + index + actual_cnt, data_offset(index), length() - index);//shift rem chars up (including null char)
+		memcpy(begin() + index, data, actual_cnt);//copy data
 		return set_len(length() + actual_cnt, actual_cnt == len);
 	}
 	bool handle_insert(size_type index, size_type repeat, char_type c)
@@ -574,7 +553,7 @@ private:
 		if (full())
 			return notify_overrun();
 		const auto actual_cnt = get_min(available(), repeat);
-		memmove(m_str + index + actual_cnt, m_str + index, length() - index);//shift rem chars up (including null char)
+		memmove(begin() + index + actual_cnt, data_offset(index), length() - index);//shift rem chars up (including null char)
 		for (auto i = 0u; i < actual_cnt; i++)
 			m_str[index + i] = c;
 		return set_len(length() + actual_cnt, actual_cnt == repeat);
@@ -600,7 +579,7 @@ private:
 	}
 	bool equals(const FixedString& rhs, bool b_insens)const
 	{
-		return (&rhs == this) ? true : equals(rhs.m_str, rhs.length(), b_insens);
+		return (&rhs == this) ? true : equals(rhs.c_str(), rhs.length(), b_insens);
 	}
 	bool equals(const_pointer rhs, bool b_insens)const { return equals(rhs, safe_len(rhs), b_insens); }
 	bool equals(const_pointer rhs, size_type len, bool b_insens)const
@@ -613,22 +592,28 @@ private:
 			return compareTo(rhs, len) == 0;
 		//case insensitive
 		for (auto i = 0u; i < len; i++)
-			if (toupper(m_str[i]) != toupper(rhs[i]))
+			if (toupper(charAt(i)) != toupper(rhs[i]))
 				return false;
 		return true;
 	}
-	void formatV(const_pointer pFormat, va_list args)
+	void formatV(const_pointer fmt, va_list args)
 	{
+		if (safe_len(fmt) == 0)
+			return;
 		va_list argssave;
 		va_copy(argssave, args);
-		auto ret = static_cast<size_type>(vsnprintf(m_str, capacity() + 1, pFormat, args));
+		auto ret = vsnprintf(m_str, capacity() + 1, fmt, args);
 		va_end(argssave);
-		if (ret >= 0 && ret <= capacity())
-			set_len(ret);
-		else if (ret > capacity())
-			set_len(capacity(), false);//Assume overflow so truncate
-		else
+		if (ret < 0)
+		{
 			clear(); //error
+			return;
+		}
+		auto len = static_cast<size_type>(ret);
+		if (len >= 0 && len <= capacity())
+			set_len(len);
+		else if (len > capacity())
+			set_len(capacity(), false);//Assume overflow so truncate
 	}
 
 #ifndef ARDUINO
@@ -686,6 +671,11 @@ private:
 		return set_chars(l, r);
 #endif
 	}
+	bool set_f(double f, size_type decPlaces)
+	{
+		return set_f(f, decPlaces + 2, decPlaces);
+	}
+
 	bool set_f(double f, size_type width, size_type prec)
 	{
 		clear();//Always start empty
