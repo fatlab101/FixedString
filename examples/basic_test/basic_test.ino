@@ -25,8 +25,9 @@ void test_equals(const char* s1,const char* s2,int test_no)
 {
   if(strcmp(s1,s2)!=0)
    {
+   FixedString<64> sFmt(F("Test No: %i - Failed got: %s, expected: %s"));
    FixedString<92> s;
-   s.format(F("Test No: %i - Failed got: %s, expected: %s"),test_no,s1,s2);
+   s.format(sFmt,test_no,s1,s2);
    Serial.println(s);
    fail_cnt++;
    }
@@ -82,7 +83,7 @@ void TestFixedString()
 	test(FixedString<8>(33u,base16)=="21",36);
 
 	FixedString<16> s8;
-	s8.set(255u,base16);
+	s8.assign(255u,base16);
 	test(s8=="ff",37);
 
 
