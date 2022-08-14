@@ -9,7 +9,9 @@ An Arduino stack based fixed string class:
 
 #include <FixedString.h>
 
-Replace:
+//To reliably use a raw stack based string buffer
+
+//Replace:
 
 char buffer[24];
 strcpy(buffer,"This is my");
@@ -17,16 +19,16 @@ strcat(buffer," string");
 Serial.println(buffer);
 
 
-With:
+//With:
 
 FixedString<24> buffer="This is my";
 buffer+=" string";
 Serial.println(buffer.c_str());
 
 
-OR if the maximum string size used is a known:
+//OR if the maximum string size used is a known:
 
-Replace:
+//Replace:
 
 String s;
 s+="Some stuff";
@@ -35,7 +37,7 @@ s+=2300;
 Serial.println(s.c_str());
 
 
-With:
+//With:
 
 FixedString<48> s;
 s+="Some stuff";
@@ -43,7 +45,7 @@ s+="some other stuff";
 s+=2300;
 Serial.println(s.c_str());
 
-OR where formatting needed:
+//OR where formatting needed:
 
 FixedString<64> s;
 s.format("Testing format: int: %i, long: %li", 10, 75000l);
