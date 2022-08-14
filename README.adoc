@@ -26,7 +26,7 @@ buffer+=" string";
 Serial.println(buffer.c_str());
 
 
-//OR if the maximum string size used is a known:
+//OR if the maximum string size used is known:
 
 //Replace:
 
