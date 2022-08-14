@@ -40,7 +40,7 @@ toLowerCase	KEYWORD2
 toUpperCase	KEYWORD2
 trim		KEYWORD2
 
-set			KEYWORD2
+assign		KEYWORD2
 toInt		KEYWORD2
 toFloat		KEYWORD2
 toDouble	KEYWORD2

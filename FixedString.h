@@ -24,7 +24,7 @@
 
 #else //Testing 
 #if __cplusplus < 201703L
-#error Require C++17 for non-Arduino testing!
+#error Require C++17 for non-Arduino testing. See set_number().
 #endif
 #include <stdlib.h>
 #include <string.h>
@@ -42,16 +42,15 @@
 //  const static char long_str[] PROGMEM = "Hi, I would like to tell you a bit about myself.\n"
 //
 //To define Flash String constant use DEFINE_PSTR()
-//
-// DEFINE_PSTR(my_const_str_val,"This is a literal string held completely in flash memory."); 
+//		DEFINE_PSTR(my_const_str_val,"This is a literal string held completely in flash memory."); 
 //
 // To then access this string use GET_PSTR()
-//
-// String s(GET_PSTR(my_const_str_val));
+//		String s(GET_PSTR(my_const_str_val));
+//		FixedString<> sf(GET_PSTR(my_const_str_val));
 //
 //NB. Use F() for literal strings
-//
-// String s(F("My flash string"));
+//		String s(F("My flash string"));
+//		FixedString<> sf(F("My flash string"));
 //
 #define DEFINE_PSTR(lbl,s)	static const char pstr_##lbl[] PROGMEM = s
 #define GET_PSTR(lbl)	(reinterpret_cast<const __FlashStringHelper*>(pstr_##lbl))
@@ -213,13 +212,9 @@ public:
 	FixedString& operator+=(Param p) { concat(p); return *this; }
 	template<size_type c_storage_size2>
 	FixedString& operator+=(const FixedString& s) { concat(s); return *this; }
-#ifdef ARDUINO
-	bool concat(const String& s) { return handle_insert(length(), s.c_str(), s.length()); }
-	bool concat(FlashPtr str) { return concat(FixedString(str)); }
-	FixedString& operator+=(const String& s) { concat(s); return *this; }
-	FixedString& operator+=(FlashPtr str) { concat(str); return *this; }
-#endif
 	//Support for C style sprintf format
+	//NB. %f floating point output doen't work by default as it adds a lot of code to a sketch
+	//		
 	void format(const_pointer fmt, ...)
 	{
 		clear();
@@ -230,6 +225,23 @@ public:
 		formatV(fmt, args);
 		va_end(args);
 	}
+#ifdef ARDUINO
+	bool concat(const String& s) { return handle_insert(length(), s.c_str(), s.length()); }
+	bool concat(FlashPtr str) { return concat(FixedString(str)); }
+	FixedString& operator+=(const String& s) { concat(s); return *this; }
+	FixedString& operator+=(FlashPtr str) { concat(str); return *this; }
+	void format(FlashPtr f_fmt, ...)
+	{
+		clear();
+		FixedString fmt(f_fmt);
+		if (fmt.empty())
+			return;
+		va_list args;
+		va_start(args, fmt.m_str);
+		formatV(fmt.m_str, args);
+		va_end(args);
+	}
+#endif
 
 	//string comparison
 	int compareTo(const FixedString& rhs)const
@@ -279,6 +291,12 @@ public:
 	bool equalsIgnoreCase(const_pointer rhs)const { return equals(rhs, true); }
 
 	//Data access
+	//operator const_pointer()const { return m_str; }
+	const_pointer c_str()const { return m_str; }
+	const_pointer begin()const { return m_str; }
+	const_pointer end()const { return begin() + length(); }
+	pointer begin() { return m_str; }
+	pointer	end() { return begin() + length(); }
 	char_type charAt(size_type index)const { return valid_pos(index) ? m_str[index] : 0; }
 	char_type operator[](size_type index)const { return charAt(index); }
 	void setCharAt(size_type index, char_type c)
@@ -289,6 +307,8 @@ public:
 		if (c == '\0')
 			set_len(index);//shrink
 	}
+	//Call if string modified externally via begin()/end()
+	void update_len() { set_len(get_min(safe_len(c_str()), capacity())); }
 
 	void getBytes(unsigned char* buf, size_type bufsize, size_type index = 0) const
 	{
@@ -309,14 +329,6 @@ public:
 		memcpy(buf, c_str() + index, n);
 		buf[n] = 0;
 	}
-	operator const_pointer()const { return m_str; }
-	const_pointer c_str()const { return m_str; }
-	const_pointer begin()const { return m_str; }
-	const_pointer end()const { return begin() + length(); }
-	pointer begin() { return m_str; }
-	pointer	end() { return begin() + length(); }
-	//Call if string modified externally via begin()/end()
-	void update_len() { set_len(get_min(safe_len(c_str()), capacity())); }
 
 	//search
 	bool startsWith(const_pointer s, size_type offset = 0)const
@@ -533,14 +545,15 @@ private:
 		if (index > length())
 			return false;
 		if (is_empty(data, len))
-			return false;
+			return true; //nothing to add
 		if (full())
 			return notify_overrun(data, len);
 		if (!allowPartial && len > capacity())
 			return notify_overrun(data, len);
 
 		const auto actual_cnt = get_min(available(), len);
-		memmove(begin() + index + actual_cnt, data_offset(index), length() - index);//shift rem chars up (including null char)
+		if (index < length())
+			memmove(begin() + index + actual_cnt, data_offset(index), length() - index);//shift rem chars up (including null char)
 		memcpy(begin() + index, data, actual_cnt);//copy data
 		return set_len(length() + actual_cnt, actual_cnt == len);
 	}
@@ -549,11 +562,12 @@ private:
 		if (index > length())
 			return false;
 		if (repeat == 0 || c == '\0')
-			return false;
+			return true; //nothing to add
 		if (full())
 			return notify_overrun();
 		const auto actual_cnt = get_min(available(), repeat);
-		memmove(begin() + index + actual_cnt, data_offset(index), length() - index);//shift rem chars up (including null char)
+		if (index < length())
+			memmove(begin() + index + actual_cnt, data_offset(index), length() - index);//shift rem chars up (including null char)
 		for (auto i = 0u; i < actual_cnt; i++)
 			m_str[index + i] = c;
 		return set_len(length() + actual_cnt, actual_cnt == repeat);
@@ -579,7 +593,8 @@ private:
 	}
 	bool equals(const FixedString& rhs, bool b_insens)const
 	{
-		return (&rhs == this) ? true : equals(rhs.c_str(), rhs.length(), b_insens);
+		return &rhs == this ||
+			equals(rhs.c_str(), rhs.length(), b_insens);
 	}
 	bool equals(const_pointer rhs, bool b_insens)const { return equals(rhs, safe_len(rhs), b_insens); }
 	bool equals(const_pointer rhs, size_type len, bool b_insens)const
@@ -618,11 +633,11 @@ private:
 
 #ifndef ARDUINO
 	//Non Arduino code simply uses std::to_chars Assumes c++17!
+	//This supports all possible numbers
 	template<typename TInt>
-	bool set_chars(TInt i, Radix r = base10)
+	bool set_number(char_type buf[], TInt i, Radix r)
 	{
 		//We alloc safe size for buffer -  i.e. max for base 2
-		char_type buf[1 + 8 * sizeof(TInt)]{};
 		auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf) - 1, i, r);
 		if (ec != std::errc())
 			return false;
@@ -631,44 +646,44 @@ private:
 	}
 #endif
 
-	bool set_u(unsigned int u, Radix r = base10)
+	bool set_u(unsigned int u, Radix r)
 	{
 		clear();//Always start empty
-#ifdef ARDUINO 
 		char_type buf[1 + 8 * sizeof(unsigned long)]{};//alloc max size for base 2
+#ifdef ARDUINO 
 		return handle_insert(length(), utoa(u, buf, r), false);
 #else
-		return set_chars(u, r);
+		return set_number(buf, u, r);
 #endif
 	}
-	bool set_ul(unsigned long ul, Radix r = base10)
+	bool set_ul(unsigned long ul, Radix r)
 	{
 		clear();//Always start empty
-#ifdef ARDUINO 
 		char_type buf[1 + 8 * sizeof(unsigned long)]{};//alloc max size for base 2
+#ifdef ARDUINO 
 		return handle_insert(length(), ultoa(ul, buf, r), false);
 #else
-		return set_chars(ul, r);
+		return set_number(buf, ul, r);
 #endif
 	}
-	bool set_i(int i, Radix r = base10)
+	bool set_i(int i, Radix r)
 	{
 		clear();//Always start empty
-#ifdef ARDUINO 
 		char_type buf[2 + 8 * sizeof(int)]{};//alloc max size for base 2
+#ifdef ARDUINO 
 		return handle_insert(length(), itoa(i, buf, r), false);
 #else
-		return set_chars(i, r);
+		return set_number(buf, i, r);
 #endif
 	}
-	bool set_l(long l, Radix r = base10)
+	bool set_l(long l, Radix r)
 	{
 		clear();//Always start empty
-#ifdef ARDUINO 
 		char_type buf[2 + 8 * sizeof(long)]{};//alloc max size for base 2
+#ifdef ARDUINO 
 		return handle_insert(length(), ltoa(l, buf, r), false);
 #else
-		return set_chars(l, r);
+		return set_number(buf, l, r);
 #endif
 	}
 	bool set_f(double f, size_type decPlaces)
@@ -713,7 +728,7 @@ public:
 	friend FixedString operator+(const_pointer s, const FixedString& rhs) { return FixedString(s) += rhs; }
 	template<typename TRhs> //All others
 	friend FixedString operator+(TRhs lhs, const FixedString& rhs) { return FixedString(lhs) += rhs; }
-};
+	};
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 #endif

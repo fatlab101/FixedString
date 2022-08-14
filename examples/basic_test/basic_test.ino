@@ -17,7 +17,7 @@ void test(bool b_val,int test_no,const char* val="")
       s.format("Test No: %i - Failed <%s>",test_no,s_val.c_str());
     else
       s.format("Test No: %i - Failed....",test_no);
-    Serial.println(s);
+    Serial.println(s.c_str());
     fail_cnt++;
    }
 }
@@ -25,10 +25,9 @@ void test_equals(const char* s1,const char* s2,int test_no)
 {
   if(strcmp(s1,s2)!=0)
    {
-   FixedString<64> sFmt(F("Test No: %i - Failed got: %s, expected: %s"));
    FixedString<92> s;
-   s.format(sFmt,test_no,s1,s2);
-   Serial.println(s);
+   s.format(F("Test No: %i - Failed got: %s, expected: %s"),test_no,s1,s2);
+   Serial.println(s.c_str());
    fail_cnt++;
    }
 }
@@ -76,8 +75,8 @@ void TestFixedString()
 
 	test(FixedString<8>(3)=="3",30);
 	test(FixedString<8>(3l)=="3",31);
-	test_equals(FixedString<8>(3.348,2),"3.35",32);
-	test_equals(FixedString<8>(3.342,2),"3.34",33);
+	test_equals(FixedString<8>(3.348,2).c_str(),"3.35",32);
+	test_equals(FixedString<8>(3.342,2).c_str(),"3.34",33);
 	test(FixedString<8>(33u,base10)=="33",34);
 	test(FixedString<8>(33u,base8)=="41",35);
 	test(FixedString<8>(33u,base16)=="21",36);
@@ -140,37 +139,37 @@ void TestFixedString()
 	s1+='c';
 	s1+="de";
 	s1+=4.349;
-	test_equals(s1,"wha: 333cde4.35",81);
+	test_equals(s1.c_str(),"wha: 333cde4.35",81);
 	s16=s1;
-	test_equals(s16,"wha: 333cde4.3",82);
+	test_equals(s16.c_str(),"wha: 333cde4.3",82);
 
 	//Format test
 	s1.format("%s %i %u ","fred",-23,341u,23.34);
-	test_equals(s1,"fred -23 341 ",90);
+	test_equals(s1.c_str(),"fred -23 341 ",90);
 
 	FixedString<24> s24 = "test me:"+s1;
-	test_equals(s24,"test me:fred -23 341 ",91);
+	test_equals(s24.c_str(),"test me:fred -23 341 ",91);
 	s24 = 3.458 + s1;
-	test_equals(s24,"3.46fred -23 341 ",92);
+	test_equals(s24.c_str(),"3.46fred -23 341 ",92);
 	s24 = -3456 + s1;
-	test_equals(s24,"-3456fred -23 341 ",93);
+	test_equals(s24.c_str(),"-3456fred -23 341 ",93);
 	s24 = 3456u + s1;
-	test_equals(s24,"3456fred -23 341 ",94);
+	test_equals(s24.c_str(),"3456fred -23 341 ",94);
 
 	FixedString<32> sp(F("This is a program string"));
-	test_equals(sp,"This is a program string",100);
+	test_equals(sp.c_str(),"This is a program string",100);
 	sp+=F(" ++");
-	test_equals(sp,"This is a program string ++",101);
+	test_equals(sp.c_str(),"This is a program string ++",101);
 	sp=F("P string2 ") + s24;
 	//NB. Will overflow on str<24> so test len == 22!!!
-	test(sp="P string2 3456fred -23",102);
+	test_equals(sp.c_str(),"P string2 3456fred -23",102);
 
 
 	FixedString<64> s25(25.456,2);
-	test_equals(s25, "25.46", 103);
+	test_equals(s25.c_str(), "25.46", 103);
 
-	s=25;
-	test_equals(s25, "25", 104);
+	s25 = 25;
+	test_equals(s25.c_str(), "25", 104);
 	test(s25.toInt()== 25, 105);
 	s25 += " stuff at u end [tu]*e#$d";
 
@@ -186,21 +185,69 @@ void TestFixedString()
 
 	test(s25.lastIndexOf("tu") == 19, 113);
 	test(s25.lastIndexOf("tu", 18) == 4, 114);
+
+	unsigned char out8u=0xFF;
+	test_equals(FixedString<16>(out8u, base10).c_str(),"255", 120);
+	test_equals(FixedString<16>(out8u, base2).c_str(),"11111111", 121);
+	test_equals(FixedString<16>(out8u, base8).c_str(),"377", 122);
+	test_equals(FixedString<16>(out8u, base16).c_str(),"ff", 123);
+
+	char out8='9';
+	test_equals(FixedString<16>(out8, base10).c_str(),"57", 125);
+	test_equals(FixedString<16>(out8, base2).c_str(),"111001", 126);
+	test_equals(FixedString<16>(out8, base8).c_str(),"71", 127);
+	test_equals(FixedString<16>(out8, base16).c_str(),"39", 128);
+
+	unsigned int outUInt=0xEEFF;
+	test_equals(FixedString<32>(outUInt, base10).c_str(),"61183", 130);
+	test_equals(FixedString<32>(outUInt, base2).c_str(),"1110111011111111", 131);
+	test_equals(FixedString<32>(outUInt, base8).c_str(),"167377", 132);
+	test_equals(FixedString<32>(outUInt, base16).c_str(),"eeff", 133);
+
+	int outInt=1125;
+	test_equals(FixedString<32>(outInt, base10).c_str(),"1125", 135);
+	test_equals(FixedString<32>(outInt, base2).c_str(),"10001100101", 136);
+	test_equals(FixedString<32>(outInt, base8).c_str(),"2145", 137);
+	test_equals(FixedString<32>(outInt, base16).c_str(),"465", 138);
+
+	unsigned long outULong=0xEEFFEEFF;
+	test_equals(FixedString<48>(outULong, base10).c_str(),"4009750271", 140);
+	test_equals(FixedString<48>(outULong, base2).c_str(),"11101110111111111110111011111111", 141);
+	test_equals(FixedString<48>(outULong, base8).c_str(),"35677767377", 142);
+	test_equals(FixedString<48>(outULong, base16).c_str(),"eeffeeff", 143);
+
+	long outLong=110025;
+	test_equals(FixedString<48>(outLong, base10).c_str(),"110025", 145);
+	test_equals(FixedString<48>(outLong, base2).c_str(),"11010110111001001", 146);
+	test_equals(FixedString<48>(outLong, base8).c_str(),"326711", 147);
+	test_equals(FixedString<48>(outLong, base16).c_str(),"1adc9", 148);
+
 }
 
 void setup() 
 {
-    Serial.begin(9600);
-    delay(50);
-    Serial.println("Basic testing of FixedString<>....");
+	Serial.begin(9600);
+	delay(50);
+	Serial.println("Basic testing of FixedString<>....");
 	TestFixedString();
-    Serial.println("Finished testing");
-    if(fail_cnt>0)
-      return;
-    Serial.println("All tests passed");   
+	Serial.println("Finished testing");
+	if(fail_cnt>0)
+	  return;
+	Serial.println("All tests passed");   
 }
 
-void loop(){}
+void loop()
+{
+  FixedString<64> s;
+  int secondsPerLoop=5;
+  for(int i=0; ;i++)
+  {
+    s.format("Loop count: %i @ %li seconds", i+1, (long)i*secondsPerLoop);
+    Serial.println(s.c_str());   
+    delay(secondsPerLoop*1000);
+  }
+  
+}
 
 /*********************************************************************************************************
   END FILE

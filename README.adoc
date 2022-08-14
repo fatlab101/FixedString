@@ -24,6 +24,35 @@ buffer+=" string";
 Serial.println(buffer.c_str());
 
 
+OR if the maximum string size used is a known:
+
+Replace:
+
+String s;
+s+="Some stuff";
+s+="some other stuff";
+s+=2300;
+Serial.println(s.c_str());
+
+
+With:
+
+FixedString<48> s;
+s+="Some stuff";
+s+="some other stuff";
+s+=2300;
+Serial.println(s.c_str());
+
+OR where formatting needed:
+
+FixedString<64> s;
+s.format("Testing format: int: %i, long: %li", 10, 75000l);
+Serial.println(s.c_str());
+
+s.format(F("Testing flash format: int: %i, long: %li"), 10, 75000l);
+Serial.println(s.c_str());
+
+
 ```
 
 

@@ -1,4 +1,8 @@
 
-NTPClient 0.1.0 - 2022.08.13
+FixedString 0.1.1 - 2022.08.15
+
+* Fixed issues with formatting of numbers
+
+FixedString 0.1.0 - 2022.08.13
 
 * Initial release
